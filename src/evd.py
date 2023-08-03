@@ -19,7 +19,7 @@ MANUAL_MODE = 1
 
 class evd:
     """
-    This class handle the Elurian Video Detection acording to the article:
+    This class handles the Elurian Video Detection according to the article:
     Using video detection of snow surface movements to estimate weak layer crack propagation speeds
     here: https://urldefense.proofpoint.com/v2/url?u=https-3A__doi.org_10.1017_aog.2023.36&d=DwMFaQ&c=sdnEM9SRGFuMt5z5w3AhsPNahmNicq64TgF1JwNR0cs&r=qyyjeb2qJLbohNPV74KC66ZSWEV219tYajvnHT09Fhw&m=oVZ9Tmu6j9NKa-p5CJqs177iCUGB-F3TEKP6IsA5FqnWAaXyOwba_zODws1ZMKBA&s=5FmXEa6O-fppaULaCnxl-SLdVLwIl-RqOckz7utjodM&e=
     """
@@ -43,11 +43,11 @@ class evd:
 
     def load_video(self):
         """
-        This function load a video file into the memory.
+        This function loads a video file into the memory.
 
         Returns
         -------
-        None. It adds the video as numpy array to the EVD object
+        None. It adds the video as numpy array to the EVD object.
 
         """
         cap = cv2.VideoCapture(self.src_path)
@@ -212,8 +212,8 @@ class evd:
 
     def _get_poly_mask(self):
         """
-        This fuction generate a binary mask from ROI. The mask size is:
-        (video's heigth, video width, 1)
+        This function generates a binary mask from ROI. The mask size is:
+        (video's height, video width, 1)
 
         Returns
         -------
@@ -234,7 +234,7 @@ class evd:
     def _get_rect_roi(self, event, x, y, flags, params):
         """
         A mouse callback function that draws a rectangle on a video frame
-        and save its corners as ROI for future analasys
+        and save its corners as ROI for future analysis
         --------------------------------------------------------------
             params: self
                     (int) event: mouse event (left click up, down, mouse move...)
@@ -246,7 +246,7 @@ class evd:
                             EVENT_FLAG_CTRLKEY
                             EVENT_FLAG_SHIFTKEY
                             EVENT_FLAG_ALTKEY
-                    params: user specific parameters (not used)
+                    params: user-specific parameters (not used)
             return: None
         """
         if event==cv2.EVENT_LBUTTONDOWN:
@@ -274,7 +274,7 @@ class evd:
     def _get_poly_roi(self, event, x, y, flags, params):
         """
         A mouse callback function that draws a rectangle on a video frame
-        and save its corners as ROI for future analasys
+        and save its corners as ROI for future analysis
         --------------------------------------------------------------
         """
         if event == cv2.EVENT_LBUTTONDOWN:
@@ -295,14 +295,14 @@ class evd:
 
     def _mark_sample_area(self, event, x,y, flags, params):
         """
-        A mouse callback event fuction to get area location for pixel intensity
-        location. This fuction save self.sample_rect variabole (size (16,16))
+        A mouse callback event function to get area location for pixel intensity
+        location. This function saves self.sample_rect variable (size (16,16))
         around the sample point
 
         Parameters
         ----------
         event : int
-            cv2 Mouse events. The inly event that this function respose to is:
+            cv2 Mouse events. The only event that this function response to is:
             cv2.EVENT_LBUTTONDBLCLK (7)
         x : int
             x axis location on the video frame.
@@ -344,8 +344,8 @@ class evd:
         Parameters
         ----------
         video : TYPE - str, optional
-            DESCRIPTION. The name of the variabole that holds the video data
-            to play. The default is None, the function plays the self.video in this case.
+            DESCRIPTION. The name of the variable that holds the video data
+            to play. The default is None. The function plays the self.video in this case.
         window_name : TYPE - str, optional
             DESCRIPTION. The default is None.
         mode : TYPE, optional
@@ -353,7 +353,7 @@ class evd:
             "f" and "b" keys.
         mouse_callback_func : TYPE - function, optional
             DESCRIPTION. This variable is used to call a specific function that
-            handles a mouse event function. For example, it used to draw ROIs.
+            handles a mouse event function. For example, it is used to draw ROIs.
             The default is None.
 
         Returns
@@ -422,7 +422,7 @@ class evd:
                             data,
                             pyr_levels=3):
         """
-        This fuction is a class methoud. It is doing Gausian down sample pyramid
+        This function is a class method. It is doing Gaussian down-sample pyramid
 
         Parameters
         ----------
@@ -435,7 +435,7 @@ class evd:
 
         Returns
         -------
-        The video after it Gausian down sampled.
+        The video after it Gaussian down sampled.
 
         """
 
@@ -450,7 +450,7 @@ class evd:
     @classmethod
     def up_sample_gausian(cls, data, pyr_levels=3):
         """
-        This fuction is a class methoud. It is doing Gausian up sample pyramid
+        This function is a class method. It is doing Gaussian up sample pyramid.
 
         Parameters
         ----------
@@ -463,7 +463,7 @@ class evd:
 
         Returns
         -------
-        The video after Gausian up sample.
+        The video after Gaussian up sample.
 
         """
 
@@ -492,18 +492,18 @@ class evd:
         high_freq : Type float, optional
             DESCRIPTION. The minimum frequency to filter out from the video
                          signal. The default is NAN; in this case, the minimum
-                         frequency is the frequency that alows for two iteratiions
+                         frequency is the frequency that allows for two iterations
                          from the crack initiation and the appearance of cracks
                          on the snow surface.
         low_freq : Type float, optional
             DESCRIPTION. The minimum frequency to keep after filtering the video
                          signal. The default is NAN; in this case, the minimum
-                         frequency is the frequency that alows for one iteratiions
+                         frequency is the frequency that allows for one iteration
                          from the crack initiation and the appearance of cracks
                          on the snow surface.
         return_size : TYPE str, optional
             DESCRIPTION. 'original' to return the filtered signal as the
-                         original video size, everything else will return
+                         original video size. Everything else will return
                          in the downsampled size. The default is 'original'.
 
         Returns
@@ -572,7 +572,7 @@ class evd:
     @classmethod
     def save_video(cls, video=None, fps=30):
         """
-        This fuction save a 5D tensor as video file
+        This function saves a 5D tensor as a video file
 
         Parameters
         ----------
@@ -628,19 +628,19 @@ class evd:
             possibole keys:
                 'gausian kernel size': kernel size for changs development over
                                        time display. Default is 11
-                'methoud maxima': defime threshold for detection as number of
+                'methoud maxima': define a threshold for detection as the number of
                                   stanf=datd deviations from the mean or 0.97
                                   from the maximum change over time
-                'std to outlier': The number of standard deviation from the
-                                  mean to use as outlier for threshold for
-                                  detected changes. The deafult is 3
+                'std to outlier': The number of standard deviations from the
+                                  mean to use as an outlier for the threshold for
+                                  detected changes. The default is 3
         Returns
         -------
         detected : TYPE
             DESCRIPTION.
 
         """
-        gausian_kernel = kwargs.get('gausian kernel size', 11)
+        gausian_kernel = kwargs.get('gaussian kernel size', 11)
         maxima_methoud = kwargs.get('methoud maxima', 'from max')
         diff_data = np.diff(data, axis=0)
         # Get points where diff_data reach minima or maxima:
