@@ -17,7 +17,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 MANUAL_MODE = 1
 
-class evd:
+class Evd:
     """
     This class handles the Elurian Video Detection according to the article:
     Using video detection of snow surface movements to estimate weak layer crack propagation speeds
@@ -181,7 +181,7 @@ class evd:
         self.stab_video = np.array(stab_video)
 
 
-    def get_roi(self, roi_type='poly'):
+    def draw_roi(self, roi_type='poly'):
         """
         This function generates a Region Of Intrest to set the area for
         detection. There are two kinds of ROI it can return: polynomial shared
@@ -438,9 +438,9 @@ class evd:
         The video after it Gaussian down sampled.
 
         """
-
+        data = np.array(data)
         video_data = []
-        for f in data:
+        for f in data.astype(float):
             for i in range(pyr_levels):
                 f = cv2.pyrDown(f)
             video_data.append(f)
@@ -466,9 +466,9 @@ class evd:
         The video after Gaussian up sample.
 
         """
-
+        data = np.array(data)
         video_data = []
-        for f in data:
+        for f in data.astype(float):
             for i in range(pyr_levels):
                 f = cv2.pyrUp(f)
             video_data.append(f)
@@ -478,8 +478,8 @@ class evd:
 
     def apply_temporal_filter(self,
                               pyr_levels=3,
-                              high_freq = np.nan,
-                              low_freq = np.nan,
+                              high_freq= None,
+                              low_freq=None,
                               return_size='original'):
         """
 
@@ -515,17 +515,19 @@ class evd:
         self.pyr_levels = pyr_levels
         frequancies = fftpack.fftfreq(self.end_frame - self.start_frame,
                                       d=1.0/self.fps)
-        video = self.video#[self.start_frame: self.end_frame]
+        video = self.video[self.start_frame: self.end_frame]
         gray = [cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in video]
         gray = [np.where(self.mask, f, 0).astype(np.uint8) for f in gray]
         video_data = self.down_sample_gausian(gray, pyr_levels)
         fft_signal = fftpack.fft(video_data, axis=0)
         # get the frequancies to filter out:
-        high_freq = 2 * (self.end_frame - self.start_frame) / self.fps
-        low_freq = (self.end_frame - self.start_frame) / self.fps
+        if high_freq is None:
+            high_freq = 1.9 * (self.end_frame - self.start_frame) / self.fps
+        if low_freq is None:
+            low_freq = (self.end_frame - self.start_frame) / self.fps
 
         high_bound = np.abs(frequancies-high_freq).argmin()
-        low_bound = max(np.abs(frequancies-low_freq).argmin(), 1)
+        low_bound = min(np.abs(frequancies-low_freq).argmin(), 1)
         # Zero the frequancies we dont need
         fft_signal[:low_bound] = 0
         fft_signal[high_bound:-high_bound] = 0
