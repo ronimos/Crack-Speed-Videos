@@ -39,6 +39,7 @@ class Evd:
         else:
             self.src_path = path
         self.load_video()
+        self.mask = np.zeros_like(self.video[0])
 
 
     def load_video(self):
@@ -58,15 +59,15 @@ class Evd:
         self.start_frame = 0
         self.end_frame = self.length
 
-        video = []
+        video = np.zeros((self.length, self.heigth, self.width, 3), dtype=np.uint8)
 
         for i in tqdm(range(self.length), desc=f'Loading video from: {self.src_path}'):
             ret, frame = cap.read()
             if not ret:
                 break
-            video.append(frame)
+            video[i] = frame
         cap.release()
-        self.video = np.array(video)
+        self.video = video
         tk.Tk().withdraw()
         update_start_end = askyesno('Start End update message',
                                     f'Initiation frame and crack propagation end are set to {self.start_frame} and {self.end_frame}.\n Do you want to update that?')
@@ -74,7 +75,7 @@ class Evd:
             self.play_video(self.video,
                             window_name='Click "f" for forward, "b" for backward, "s" and "e" to mark initiation and end propagation frames, "i" and "o" to zoon in and out and Esc to stop')
 
-    def _video_stabilize(self):
+    def video_stabilize(self):
         """
         This function uses an optical flow to detect the camera's movements
         between video frames and shift frames to create a "stable camera."
@@ -94,7 +95,7 @@ class Evd:
             x, y = p
             return roi['x1'] < x < roi['x2'] and roi['y1'] < y < roi['y2']
 
-        self.get_roi(roi_type='rect')
+        self.draw_roi(roi_type='rect', save_as_mask=False)
         roi = {}
         roi['x1'], roi['y1'] = np.array(self.roi).min(axis=0)
         roi['x2'], roi['y2'] = np.array(self.roi).max(axis=0)
@@ -181,7 +182,7 @@ class Evd:
         self.stab_video = np.array(stab_video)
 
 
-    def draw_roi(self, roi_type='poly'):
+    def draw_roi(self, roi_type='poly', save_as_mask=True):
         """
         This function generates a Region Of Intrest to set the area for
         detection. There are two kinds of ROI it can return: polynomial shared
@@ -198,6 +199,7 @@ class Evd:
         None.
 
         """
+        mask = self.mask.copy()
         self.roi = []
         if self.stab_video is None:
             video = self.video
@@ -207,7 +209,10 @@ class Evd:
             self.play_video(video, window_name='Poly ROI',mouse_callback_func=self._get_poly_roi)
         else:
             self.play_video(video, window_name='Rect ROI', mouse_callback_func=self._get_rect_roi)
-        self.roi_mask = self._get_poly_mask()
+        if save_as_mask:
+            self.roi_mask = self._get_poly_mask()
+        else:
+            self.mask = mask
 
 
     def _get_poly_mask(self):
@@ -447,15 +452,13 @@ class Evd:
 
         return(np.asarray(video_data))
 
-    @classmethod
-    def up_sample_gausian(cls, data, pyr_levels=3):
+
+    def up_sample_gausian(self, data, pyr_levels=3):
         """
         This function is a class method. It is doing Gaussian up sample pyramid.
 
         Parameters
         ----------
-        cls : TYPE - evd class
-            DESCRIPTION.
         data : TYPE - numpy array or list
             DESCRIPTION - A video array that holds the video.
         pyr_levels : TYPE - int, optional
@@ -468,15 +471,21 @@ class Evd:
         """
         data = np.array(data)
         video_data = []
+        end_size = tuple(np.flip(self.video.shape[1:-1]))
         for f in data.astype(float):
             for i in range(pyr_levels):
                 f = cv2.pyrUp(f)
+            # Resize to the original size.
+            # This is needed when the pyramid is deep enough to where the
+            # image size when it downsampled is an odd number
+            f = cv2.resize(f, end_size)
             video_data.append(f)
 
         return(np.asarray(video_data))
 
 
     def apply_temporal_filter(self,
+                              detection_only=True,
                               pyr_levels=3,
                               high_freq= None,
                               low_freq=None,
@@ -486,6 +495,10 @@ class Evd:
 
         Parameters
         ----------
+        detection_only : TYPE Bool, optional
+            DESCRIPTION. If detection_only the temporal filted will be on the
+                         video's gray scale, if False, it will be on the video's
+                         RGB channels
         pyr_levels : TYPE int, optional
             DESCRIPTION. The downsample pyramid steps to apply on the video
             before applying the temporal  filter. The default is 3.
@@ -515,18 +528,22 @@ class Evd:
         self.pyr_levels = pyr_levels
         frequancies = fftpack.fftfreq(self.end_frame - self.start_frame,
                                       d=1.0/self.fps)
-        video = self.video[self.start_frame: self.end_frame]
-        gray = [cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in video]
-        gray = [np.where(self.mask, f, 0).astype(np.uint8) for f in gray]
-        video_data = self.down_sample_gausian(gray, pyr_levels)
+        video = self.video[self.start_frame: self.end_frame].copy()
+        if detection_only:
+            video = [cv2.cvtColor(f, cv2.COLOR_BGR2GRAY) for f in video]
+            mask = self.mask
+        else:
+            mask = np.expand_dims(self.mask, axis=-1)
+        video_data = np.multiply(video, mask)
+        video_data = self.down_sample_gausian(video_data, pyr_levels)
         fft_signal = fftpack.fft(video_data, axis=0)
         # get the frequancies to filter out:
         if high_freq is None:
-            high_freq = 1.9 * (self.end_frame - self.start_frame) / self.fps
+            high_freq = 2 * (self.end_frame - self.start_frame) / self.fps
         if low_freq is None:
             low_freq = (self.end_frame - self.start_frame) / self.fps
 
-        high_bound = np.abs(frequancies-high_freq).argmin()
+        high_bound = np.abs(frequancies-high_freq).argmin() + 1
         low_bound = min(np.abs(frequancies-low_freq).argmin(), 1)
         # Zero the frequancies we dont need
         fft_signal[:low_bound] = 0
@@ -535,8 +552,8 @@ class Evd:
         # Reverse Fourier transform after zeroing out unwanted frequancies
         filtered_data = np.real(fftpack.ifft(fft_signal,axis=0))
         if return_size=='original':
-            filtered_data = self.up_sample_gausian(filtered_data, pyr_levels)
-
+            filtered_data = self.up_sample_gausian(filtered_data,
+                                                   pyr_levels)
         return filtered_data
 
 
@@ -643,7 +660,7 @@ class Evd:
 
         """
         gausian_kernel = kwargs.get('gaussian kernel size', 11)
-        maxima_methoud = kwargs.get('methoud maxima', 'from max')
+        maxima_methoud = kwargs.get('methoud maxima', 'from std')
         diff_data = np.diff(data, axis=0)
         # Get points where diff_data reach minima or maxima:
         diff_2_data = np.diff(diff_data, axis=0)
@@ -656,24 +673,21 @@ class Evd:
                                      axis=0)
         # Find intensity change maxima
         diff_maxima = np.bitwise_and(self.mask, diff_maxima)
-        diff_maxima[:self.start_frame: self.end_frame] = 0
+
         # find outlier pixel intensity changes
         diff_data_maximas = np.abs(diff_data * diff_maxima)
         if maxima_methoud == 'from max':
             threshold = diff_data_maximas.max(axis=0) * 0.97
         else: #from std
-            std_to_outlier = kwargs.get('std to outlier', 3)
-            _mean = diff_data[self.start_frame: self.end_frame].mean(axis=0)
-            _std = diff_data[self.start_frame: self.end_frame].std(axis=0)
+            std_to_outlier = kwargs.get('std to outlier', 2.9)
+            _mean = diff_data_maximas.mean(axis=0)
+            _std = diff_data_maximas.std(axis=0)
             threshold = _mean + _std * std_to_outlier
-        detected = np.where(diff_data_maximas > threshold, 1, 0)
-        _detected = np.maximum.accumulate(detected[self.start_frame:self.end_frame])
-
-        _detected = np.array([gaussian_filter(d, gausian_kernel) for d in _detected.astype(float)])
-        detected = np.zeros_like(detected, dtype=float)
-        end_frame = self.start_frame + len(_detected)
-        detected[self.start_frame: end_frame] =_detected.astype(float)
-        detected[end_frame:] = \
-            np.where(diff_data[end_frame:] > threshold, 1, 0).astype(float)
+        detected = np.where(diff_data_maximas >= threshold, 1, 0)
+        detected = np.maximum.accumulate(detected)
+        detected = np.bitwise_and(self.mask, detected)
+        detected = np.array([gaussian_filter(d, gausian_kernel) for d in detected.astype(float)])
+        detected = np.where(detected > 0.05, 1, 0).astype(float)
 
         return detected
+
