@@ -476,8 +476,8 @@ class Evd:
             for i in range(pyr_levels):
                 f = cv2.pyrUp(f)
             # Resize to the original size.
-            # This is needed when the pyramid is deep enough to where the
-            # image size when it downsampled is an odd number
+            # This is needed when the pyramid is deep enougth to where the
+            # image size when it down sampled is odd number
             f = cv2.resize(f, end_size)
             video_data.append(f)
 
@@ -653,6 +653,7 @@ class Evd:
                 'std to outlier': The number of standard deviations from the
                                   mean to use as an outlier for the threshold for
                                   detected changes. The default is 3
+                'threshold'     : Use a specific number as threshold
         Returns
         -------
         detected : TYPE
@@ -661,6 +662,7 @@ class Evd:
         """
         gausian_kernel = kwargs.get('gaussian kernel size', 11)
         maxima_methoud = kwargs.get('methoud maxima', 'from std')
+
         diff_data = np.diff(data, axis=0)
         # Get points where diff_data reach minima or maxima:
         diff_2_data = np.diff(diff_data, axis=0)
@@ -678,11 +680,13 @@ class Evd:
         diff_data_maximas = np.abs(diff_data * diff_maxima)
         if maxima_methoud == 'from max':
             threshold = diff_data_maximas.max(axis=0) * 0.97
-        else: #from std
+        elif maxima_methoud == 'from std':
             std_to_outlier = kwargs.get('std to outlier', 2.9)
             _mean = diff_data_maximas.mean(axis=0)
             _std = diff_data_maximas.std(axis=0)
             threshold = _mean + _std * std_to_outlier
+        else: #a set number
+            threshold = kwargs.get('threshold', diff_data_maximas.max(axis=0) * 0.97)
         detected = np.where(diff_data_maximas >= threshold, 1, 0)
         detected = np.maximum.accumulate(detected)
         detected = np.bitwise_and(self.mask, detected)
@@ -690,4 +694,3 @@ class Evd:
         detected = np.where(detected > 0.05, 1, 0).astype(float)
 
         return detected
-
